@@ -8,6 +8,7 @@ class BareMetalIOApplication {
 
 	@Test
 	void contextLoads() {
+		return;
 	}
 
 }

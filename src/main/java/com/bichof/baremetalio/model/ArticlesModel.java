@@ -23,6 +23,8 @@ public class ArticlesModel extends RepresentationModel<ArticlesModel> implements
 	private String title;
 	private Date date;
 	private String author;
+	private String description;
+	private String link;
 
 	public UUID getIdArticle() {
 		return this.idArticle;
@@ -40,6 +42,14 @@ public class ArticlesModel extends RepresentationModel<ArticlesModel> implements
 		return this.author;
 	}
 
+	public String getDescription() {
+		return this.description;
+	}
+
+	public String getLink() {
+		return this.link;
+	}
+
 	public void setIdArticle(UUID id) {
 		this.idArticle = id;
 	}
@@ -51,9 +61,16 @@ public class ArticlesModel extends RepresentationModel<ArticlesModel> implements
 	public void setDate(Date date) {
 		this.date = date;
 	}
+
 	public void setAuthor(String author) {
 		this.author = author;
 	}
 
+	public void setDescription(String description) {
+		this.description = description;
+	}
 
+	public void setLink(String link) {
+		this.link = link;
+	}
 }
