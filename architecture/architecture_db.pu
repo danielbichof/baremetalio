@@ -1,0 +1,7 @@
+@startuml
+package DBO {
+	entity articles
+}
+
+
+@enduml
