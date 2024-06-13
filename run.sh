@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
-source .env
-echo "${spring.datasource.url}"
+mvn clean
+mvn spring-boot:run

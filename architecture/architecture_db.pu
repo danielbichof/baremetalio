@@ -1,7 +1,17 @@
 @startuml
-package DBO {
-	entity articles
-}
 
+
+database ArticlesStorage{
+	entity Article{
+		id : UUID
+		title : String
+		date : Date
+		author : String
+		description : String
+		categories : String
+		tags : List<String>
+		fileGzip : byte[]
+	}
+}
 
 @enduml
