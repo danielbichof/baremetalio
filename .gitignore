@@ -60,4 +60,5 @@ build/
 
 ### Workspace
 *.env*
+application.yml
 
