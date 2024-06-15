@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
-mvn clean
+export $(grep -v '^#' .env | xargs)
 mvn spring-boot:run
