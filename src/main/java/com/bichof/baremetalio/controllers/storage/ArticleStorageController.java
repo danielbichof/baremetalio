@@ -6,11 +6,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.ParseException;
+import java.util.Base64;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
@@ -21,11 +25,15 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -39,6 +47,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 
 @Controller
 @RequestMapping("/api")
@@ -47,22 +56,24 @@ public class ArticleStorageController {
 
 	@Autowired
 	private ResourceLoader resourceLoader;
-	private final Path uploadStorageLocation;
-	private final Path readStorageLocation;
-	private ArticleParser articleParser;
+	@Autowired
+	private ArticleUtils articleParser;
+	@Autowired
+	ArticleRepository articleRepository;
+	@Autowired
+	ObjectMapper objectMapper;
 
-	public ArticleStorageController(ArticleStorageProperties fileStorageProperties, ArticleParser articleParser) {
-		this.uploadStorageLocation = Paths.get(fileStorageProperties.getStorageDir())
+	private final Path tmpStorageLocation;
+
+	public ArticleStorageController(ArticleStorageProperties fileStorageProperties) {
+		this.tmpStorageLocation = Paths.get(fileStorageProperties.getTmpStorageArticles())
 				.toAbsolutePath().normalize();
-		this.readStorageLocation = Paths.get(fileStorageProperties.getTmpStorageArticles())
-				.toAbsolutePath().normalize();
-		this.articleParser = articleParser;
 	}
 
 	@GetMapping("/download/{fileName:.+}")
 	public ResponseEntity<Resource> downloadFile(@PathVariable String fileName, HttpServletRequest request) {
 
-		Path filePath = readStorageLocation.resolve(fileName).normalize();
+		Path filePath = tmpStorageLocation.resolve(fileName).normalize();
 		logger.info("Requisitado download do arquivo: " + filePath.toString());
 
 		try {
@@ -102,7 +113,7 @@ public class ArticleStorageController {
 
 	@GetMapping("/list")
 	public ResponseEntity<List<ArticleWithLinkDto>> listArticles() throws IOException, ParseException {
-		List<ArticleWithLinkDto> articles = Files.list(readStorageLocation)
+		List<ArticleWithLinkDto> articles = Files.list(tmpStorageLocation)
 				.filter(Files::isRegularFile)
 				.map(path -> {
 					try {
@@ -122,17 +133,36 @@ public class ArticleStorageController {
 		return ResponseEntity.status(HttpStatus.OK).body(articles);
 	}
 
-	@GetMapping("/articles/{fileName:.+}")
-
-	// @PostMapping("/upload")
-	public ResponseEntity<String> uploadFile(@RequestBody @RequestParam("file") MultipartFile file) {
+	@PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	public ResponseEntity<String> uploadArticle(
+			@RequestParam("articleRecordDto") String articleJson,
+			@RequestPart("file") MultipartFile file) {
 
 		String fileName = StringUtils.cleanPath(file.getOriginalFilename());
 
+		ArticleRecordDto articleRecordDto = null;
 		try {
-			Path targetLocation = uploadStorageLocation.resolve(fileName);
-			System.out.println(targetLocation);
-			file.transferTo(targetLocation);
+			articleRecordDto = objectMapper.readValue(articleJson, ArticleRecordDto.class);
+		} catch (JsonProcessingException e) {
+			logger.error("Objeto articleRecordDto recebido invalido: " + articleJson + "	Erro:" + e.getMessage(), e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+					"Objeto articleRecordDto recebido invalido: " + articleJson + "	Erro:" + e.getMessage());
+		}
+
+		try {
+			// Print the received data for debugging
+			System.out.println("Title: " + articleRecordDto.title());
+			System.out.println("Tags: " + articleRecordDto.tags());
+			System.out.println("File: " + fileName);
+
+			articleParser.checkDirExists(tmpStorageLocation);
+			Path targetFile = tmpStorageLocation.resolve(fileName);
+			logger.info("Arquivo gravado: " + targetFile.toString() + " no diretório " + tmpStorageLocation.toString());
+			file.transferTo(targetFile);
+
+			Path targetCompressedFile = Paths.get(targetFile.toString() + ".gz");
+			ArticleUtils.compressGzip(targetFile, targetCompressedFile);
+			byte[] compressedFile = Files.readAllBytes(targetCompressedFile);
 
 			String fileDownload = ServletUriComponentsBuilder.fromCurrentContextPath().path("/api/download/")
 					.path(fileName).toUriString();
