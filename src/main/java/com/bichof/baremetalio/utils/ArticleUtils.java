@@ -1,13 +1,19 @@
 package com.bichof.baremetalio.utils;
 
 import java.io.BufferedReader;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.zip.GZIPOutputStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,8 +26,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 
 @Component
-public class ArticleParser {
-	private static final Logger logger = LoggerFactory.getLogger(ArticleParser.class);
+public class ArticleUtils {
+	private static final Logger logger = LoggerFactory.getLogger(ArticleUtils.class);
 
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -58,9 +64,35 @@ public class ArticleParser {
 					yamlMap.get("tags"),
 					TypeFactory.defaultInstance().constructCollectionType(List.class, String.class));
 
-			return new ArticleRecordDto(title, date, author, description, tags);
+			// return new ArticleRecordDto(title, date, author, description, tags);
+			return null; // TODO Ajustar a criaçao do dto
 		} catch (Exception e) {
 			throw new RuntimeException("Failed to parse YAML header", e);
+		}
+	}
+
+	public static void compressGzip(Path source, Path target) throws IOException {
+
+		try (GZIPOutputStream gos = new GZIPOutputStream(
+				new FileOutputStream(target.toFile()));
+				FileInputStream fis = new FileInputStream(source.toFile())) {
+
+			// copy file
+			byte[] buffer = new byte[1024];
+			int len;
+			while ((len = fis.read(buffer)) > 0) {
+				gos.write(buffer, 0, len);
+			}
+
+		}
+	}
+
+	public void checkDirExists(Path directory) throws IOException {
+		if (!Files.exists(directory)) {
+			Files.createDirectories(directory);
+			System.out.println("Diretório criado em: " + directory);
+		} else {
+			System.out.println("Diretório já existe em: " + directory);
 		}
 	}
 
