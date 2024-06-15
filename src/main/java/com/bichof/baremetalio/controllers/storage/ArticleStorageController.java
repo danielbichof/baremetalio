@@ -32,7 +32,11 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import com.bichof.baremetalio.controllers.configuration.ArticleStorageProperties;
 import com.bichof.baremetalio.dtos.ArticleRecordDto;
 import com.bichof.baremetalio.dtos.ArticleWithLinkDto;
-import com.bichof.baremetalio.utils.ArticleParser;
+import com.bichof.baremetalio.model.ArticlesModel;
+import com.bichof.baremetalio.repositories.ArticleRepository;
+import com.bichof.baremetalio.utils.ArticleUtils;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.servlet.http.HttpServletRequest;
 
