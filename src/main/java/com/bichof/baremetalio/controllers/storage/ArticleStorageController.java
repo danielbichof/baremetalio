@@ -70,44 +70,54 @@ public class ArticleStorageController {
 				.toAbsolutePath().normalize();
 	}
 
-	@GetMapping("/download/{fileName:.+}")
-	public ResponseEntity<Resource> downloadFile(@PathVariable String fileName, HttpServletRequest request) {
 
-		Path filePath = tmpStorageLocation.resolve(fileName).normalize();
-		logger.info("Requisitado download do arquivo: " + filePath.toString());
+	@GetMapping("/articles")
+	public ResponseEntity<List<ArticlesModel>> getAllArticles() throws IOException {
+		List<ArticlesModel> articlesList = articleRepository.findAll();
 
-		try {
-			Resource resource = new UrlResource(filePath.toUri());
+		for (ArticlesModel article : articlesList) {
+			UUID id = article.getId();
+			article.add(linkTo(methodOn(ArticleStorageController.class).getOneArticle(id)).withSelfRel());
+			article.setFileGzipUrl(linkTo(methodOn(ArticleStorageController.class).getFileGzip(id)).toUri().toString());
+		}
 
-			if (!Files.exists(filePath) || !resource.exists()) {
-				logger.error("Arquivo não encontrado: " + filePath.toString());
-				return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-			}
+		return ResponseEntity.status(HttpStatus.OK).body(articlesList);
+	}
 
-			String contentType = request.getServletContext().getMimeType(resource.getFile().getAbsolutePath());
+	@GetMapping("/articles/{id}")
+	public ResponseEntity<Object> getOneArticle(@PathVariable(value = "id") UUID id) throws IOException {
+		Optional<ArticlesModel> articleList = articleRepository.findById(id);
+		if (articleList.isEmpty()) {
+			return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Article not found");
+		}
 
-			if (contentType == null) {
-				contentType = "text/plain";
-			}
+		HttpHeaders headers = new HttpHeaders();
+		headers.set(HttpHeaders.CONTENT_ENCODING, "application/json");
 
-			String headerProperties = String.format("attachment; filename=\"%s\"", resource.getFilename());
-			return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.parseMediaType(contentType))
-					.header(HttpHeaders.CONTENT_DISPOSITION, headerProperties)
-					.body(resource);
-		} catch (MalformedURLException e) {
-			logger.error(
-					"Erro, url do arquivo invalida: "
-							+ filePath.toString()
-							+ "\n"
-							+ "threw exception: "
-							+ e.getMessage(),
-					e);
-			return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-		} catch (IOException e) {
-			logger.error(
-					"Falha ao procurar arquivo: " + filePath.toString() + " " + "threw exception: " + e.getMessage(),
-					e);
-			return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+		ArticlesModel article = articleList.get();
+
+		article.add(linkTo(methodOn(ArticleStorageController.class).getAllArticles()).withRel("Articles list"));
+		article.setFileGzipUrl(linkTo(methodOn(ArticleStorageController.class).getFileGzip(id)).toUri().toString());
+			
+		return ResponseEntity.status(HttpStatus.OK)
+				.headers(headers)
+				.body(article);
+	}
+
+	@GetMapping("/articles/{id}/file")
+	public ResponseEntity<byte[]> getFileGzip(@Valid @PathVariable(value = "id") UUID id) {
+		Optional<ArticlesModel> article = articleRepository.findById(id);
+		if (article.isPresent()) {
+			byte[] fileGzip = article.get().getFileGzip();
+			HttpHeaders headers = new HttpHeaders();
+			headers.setContentType(org.springframework.http.MediaType.APPLICATION_OCTET_STREAM);
+			headers.set(HttpHeaders.CONTENT_ENCODING, "gzip");
+			headers.setContentDispositionFormData("attachment", "file.md");
+			
+			return ResponseEntity.status(HttpStatus.OK).headers(headers).body(fileGzip);
+			
+		} else {
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		}
 	}
 
