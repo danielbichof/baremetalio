@@ -7,12 +7,14 @@ import java.util.UUID;
 
 import org.springframework.hateoas.RepresentationModel;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -32,7 +34,12 @@ public class ArticlesModel extends RepresentationModel<ArticlesModel> implements
 	private String description;
 	private List<String> tags;
 	@Lob
+	@Column(columnDefinition = "MEDIUMBLOB")
 	private byte[] fileGzip;
 	@Lob
+	@Column(columnDefinition = "TINYBLOB")
 	private byte[] md5;
+
+	@Transient
+	private String fileGzipUrl;
 }
